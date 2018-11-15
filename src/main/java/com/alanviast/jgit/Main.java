@@ -38,15 +38,34 @@ public class Main {
         Git git = new Git(repository);
         LogCommand logs = git.log();
 
+        Map<String, List<RevCommit>> revCommitMap = groupByPrefix(getLogByDay(logs, Integer.parseInt(params.get("-t"))));
 
-        for (RevCommit revCommit : getLogByDay(logs, Integer.parseInt(params.get("-t")))) {
-            System.out.print(revCommit.getId().name());
-            System.out.print(" -> ");
-            System.out.print(revCommit.getShortMessage());
-            System.out.print(" , ");
-            LocalDateTime commitDateTime = DateTimeUtils.fromTimestamp(revCommit.getCommitTime() * 1000L);
-            System.out.println(commitDateTime.format(DateTimeFormatter.BASIC_ISO_DATE));
-        }
+        revCommitMap.forEach((key, list) -> {
+
+            System.out.println("###" + key);
+
+            list.forEach(item -> {
+                System.out.println(String.format("%s -> %s, 时间: %s", item.getId().name(), item.getShortMessage(), DateTimeUtils.fromTimestamp(item.getCommitTime() * 1000L).format(DateTimeFormatter.ISO_DATE_TIME)));
+            });
+        });
+
+
+        // TODO out put to file
+
+    }
+
+    private static Map<String, List<RevCommit>> groupByPrefix(List<RevCommit> revCommitList) {
+        return revCommitList.stream().filter(item -> !item.getShortMessage().startsWith("Merge branch"))
+                .collect(
+                        Collectors.groupingBy(item -> {
+                                    int index = item.getShortMessage().indexOf(":");
+                                    if (-1 != index && index < 10) {
+                                        return item.getShortMessage().substring(0, index);
+                                    } else {
+                                        return "other";
+                                    }
+                                },
+                                Collectors.toList()));
     }
 
     /**
