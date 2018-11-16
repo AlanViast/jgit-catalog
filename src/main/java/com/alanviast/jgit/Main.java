@@ -31,9 +31,7 @@ public class Main {
         assert params.containsKey("-d");
         assert params.containsKey("-t");
 
-        Repository repository = new FileRepositoryBuilder()
-                .setGitDir(new File(params.get("-d")))
-                .build();
+        Repository repository = new FileRepositoryBuilder().setGitDir(searchGitDirectory(params.get("-d"))).build();
 
         Git git = new Git(repository);
         LogCommand logs = git.log();
@@ -52,6 +50,25 @@ public class Main {
 
         // TODO out put to file
 
+    }
+
+    /**
+     * 如果当前目录不是git对应的目录则查找子目录
+     *
+     * @param filename Git项目目录地址
+     * @return 对应的Git仓库文件夹
+     */
+    private static File searchGitDirectory(String filename) {
+        File file = new File(filename);
+        if (file.exists() && !".git".equals(file.getName())) {
+            // 查找子目录
+            file = new File(file, ".git");
+        }
+
+        if (!file.exists() || !file.isDirectory()) {
+            throw new RuntimeException("当前文件非Git项目目录");
+        }
+        return file;
     }
 
     private static Map<String, List<RevCommit>> groupByPrefix(List<RevCommit> revCommitList) {
