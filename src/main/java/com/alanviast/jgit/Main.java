@@ -1,5 +1,6 @@
 package com.alanviast.jgit;
 
+import com.alanviast.type.CommitMessageType;
 import com.alanviast.utils.DateTimeUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.LogCommand;
@@ -11,10 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -36,11 +34,11 @@ public class Main {
         Git git = new Git(repository);
         LogCommand logs = git.log();
 
-        Map<String, List<RevCommit>> revCommitMap = groupByPrefix(getLogByDay(logs, Integer.parseInt(params.get("-t"))));
+        Map<CommitMessageType, List<RevCommit>> revCommitMap = groupByPrefix(getLogByDay(logs, Integer.parseInt(params.get("-t"))));
 
         revCommitMap.forEach((key, list) -> {
 
-            System.out.println("###" + key);
+            System.out.println("###" + key.name());
 
             list.forEach(item -> {
                 System.out.println(String.format("%s -> %s, 时间: %s", item.getId().name(), item.getShortMessage(), DateTimeUtils.fromTimestamp(item.getCommitTime() * 1000L).format(DateTimeFormatter.ISO_DATE_TIME)));
@@ -71,17 +69,24 @@ public class Main {
         return file;
     }
 
-    private static Map<String, List<RevCommit>> groupByPrefix(List<RevCommit> revCommitList) {
+    /**
+     * 将对应的提交信息集合转成TreeMap
+     *
+     * @param revCommitList CommitMessage
+     * @return 排好序的Map
+     */
+    private static Map<CommitMessageType, List<RevCommit>> groupByPrefix(List<RevCommit> revCommitList) {
         return revCommitList.stream().filter(item -> !item.getShortMessage().startsWith("Merge branch"))
                 .collect(
                         Collectors.groupingBy(item -> {
                                     int index = item.getShortMessage().indexOf(":");
-                                    if (-1 != index && index < 10) {
-                                        return item.getShortMessage().substring(0, index);
-                                    } else {
-                                        return "other";
+                                    if (-1 == index) {
+                                        return CommitMessageType.other;
                                     }
+                                    String type = item.getShortMessage().substring(0, index);
+                                    return CommitMessageType.findByName(type);
                                 },
+                                TreeMap::new,
                                 Collectors.toList()));
     }
 
