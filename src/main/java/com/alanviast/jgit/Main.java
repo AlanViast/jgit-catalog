@@ -1,6 +1,7 @@
 package com.alanviast.jgit;
 
 import com.alanviast.type.CommitMessageType;
+import com.alanviast.type.ConsoleColor;
 import com.alanviast.utils.DateTimeUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.LogCommand;
@@ -38,10 +39,17 @@ public class Main {
 
         revCommitMap.forEach((key, list) -> {
 
-            System.out.println("###" + key.name());
+            System.out.println(ConsoleColor.RED + "### " + key.name() + " - " + key.getDesc() + ConsoleColor.BLACK);
 
             list.forEach(item -> {
-                System.out.println(String.format("%s -> %s, 时间: %s", item.getId().name(), item.getShortMessage(), DateTimeUtils.fromTimestamp(item.getCommitTime() * 1000L).format(DateTimeFormatter.ISO_DATE_TIME)));
+                System.out.println(String.format("ID: %s, 作者: %s[%s]%s, 时间: %s , 描述: %s",
+                        item.getId().name(),
+                        ConsoleColor.BLUE,
+                        item.getAuthorIdent().getName(),
+                        ConsoleColor.BLACK,
+                        DateTimeUtils.fromTimestamp(item.getCommitTime() * 1000L).format(DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss")),
+                        item.getShortMessage()
+                ));
             });
         });
 
