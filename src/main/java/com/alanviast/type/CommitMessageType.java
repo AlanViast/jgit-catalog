@@ -31,7 +31,7 @@ public enum CommitMessageType {
 
     public static CommitMessageType findByName(String name) {
         for (CommitMessageType value : CommitMessageType.values()) {
-            if (value.name().equals(name)) {
+            if (value.name().equals(name.trim().toLowerCase())) {
                 return value;
             }
         }

@@ -4,7 +4,7 @@
 
 ### Example
 
-> jgit.jar -d xxxx/.git -t 10 # 生成十天内的日志
+> jgit.jar -d gitProject/ -t 10 # 生成十天内的日志
 
 
 ### TODO
