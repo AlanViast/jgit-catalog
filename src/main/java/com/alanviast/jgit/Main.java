@@ -1,7 +1,12 @@
 package com.alanviast.jgit;
 
+import com.alanviast.entity.ApplicationArguments;
+import com.alanviast.entity.CommitInfo;
+import com.alanviast.output.CommitOutput;
+import com.alanviast.output.impl.ConsoleCommitOutput;
+import com.alanviast.output.impl.JsonCommitOutput;
 import com.alanviast.type.CommitMessageType;
-import com.alanviast.type.ConsoleColor;
+import com.alanviast.utils.ApplicationUtils;
 import com.alanviast.utils.DateTimeUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.LogCommand;
@@ -9,10 +14,8 @@ import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 
-import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -21,61 +24,48 @@ import java.util.stream.StreamSupport;
  * @author AlanViast
  */
 public class Main {
+    private final static List<CommitOutput> COMMIT_OUTPUT_ARRAY_LIST = new ArrayList<>();
+
+    static {
+        COMMIT_OUTPUT_ARRAY_LIST.add(new ConsoleCommitOutput());
+        COMMIT_OUTPUT_ARRAY_LIST.add(new JsonCommitOutput());
+    }
 
     public static void main(String[] args) throws IOException {
+
         System.out.println(Arrays.toString(args));
 
-        Map<String, String> params = argToMap(args);
+        ApplicationArguments applicationArguments = new ApplicationArguments(args);
+        assert applicationArguments.getProjectDirectory() == null;
 
-        assert params.containsKey("-d");
-        assert params.containsKey("-t");
-
-        Repository repository = new FileRepositoryBuilder().setGitDir(searchGitDirectory(params.get("-d"))).build();
+        Repository repository = new FileRepositoryBuilder().setGitDir(ApplicationUtils.searchGitDirectory(applicationArguments.getProjectDirectory())).build();
 
         Git git = new Git(repository);
         LogCommand logs = git.log();
 
-        Map<CommitMessageType, List<RevCommit>> revCommitMap = groupByPrefix(getLogByDay(logs, Integer.parseInt(params.get("-t"))));
+        List<CommitInfo> revCommitList;
 
-        revCommitMap.forEach((key, list) -> {
+        if (applicationArguments.containsKey("-t")) {
+            revCommitList = getLogByDay(logs, applicationArguments.getDay());
+        } else if (applicationArguments.containsKey("-r")) {
+            revCommitList = getLogByRelease(logs);
+        } else {
+            revCommitList = getLogByDay(logs, 15);
+        }
 
-            System.out.println(ConsoleColor.RED + "### " + key.name() + " - " + key.getDesc() + ConsoleColor.BLACK);
+        Map<CommitMessageType, List<CommitInfo>> revCommitMap = groupByPrefix(revCommitList);
 
-            list.forEach(item -> {
-                System.out.println(String.format("ID: %s, 作者: %s[%s]%s, 时间: %s , 描述: %s",
-                        item.getId().name(),
-                        ConsoleColor.BLUE,
-                        item.getAuthorIdent().getName(),
-                        ConsoleColor.BLACK,
-                        DateTimeUtils.fromTimestamp(item.getCommitTime() * 1000L).format(DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss")),
-                        item.getShortMessage()
-                ));
-            });
+
+        // out put to file
+        COMMIT_OUTPUT_ARRAY_LIST.forEach(handler -> {
+            try {
+                handler.handler(applicationArguments, revCommitMap);
+            } catch (Exception e) {
+                System.err.println(e.getMessage());
+            }
         });
-
-
-        // TODO out put to file
-
     }
 
-    /**
-     * 如果当前目录不是git对应的目录则查找子目录
-     *
-     * @param filename Git项目目录地址
-     * @return 对应的Git仓库文件夹
-     */
-    private static File searchGitDirectory(String filename) {
-        File file = new File(filename);
-        if (file.exists() && !".git".equals(file.getName())) {
-            // 查找子目录
-            file = new File(file, ".git");
-        }
-
-        if (!file.exists() || !file.isDirectory()) {
-            throw new RuntimeException("当前文件非Git项目目录");
-        }
-        return file;
-    }
 
     /**
      * 将对应的提交信息集合转成TreeMap
@@ -83,7 +73,7 @@ public class Main {
      * @param revCommitList CommitMessage
      * @return 排好序的Map
      */
-    private static Map<CommitMessageType, List<RevCommit>> groupByPrefix(List<RevCommit> revCommitList) {
+    private static Map<CommitMessageType, List<CommitInfo>> groupByPrefix(List<CommitInfo> revCommitList) {
         return revCommitList.stream().filter(item -> !item.getShortMessage().startsWith("Merge branch"))
                 .collect(
                         Collectors.groupingBy(item -> {
@@ -104,38 +94,37 @@ public class Main {
      * @param logs 返回几天之内的日志
      * @param day  天数内
      */
-    private static List<RevCommit> getLogByDay(LogCommand logs, int day) {
+    private static List<CommitInfo> getLogByDay(LogCommand logs, int day) {
         try {
             return StreamSupport.stream(logs.all().call().spliterator(), true).filter(revCommit -> {
                 LocalDateTime commitDateTime = DateTimeUtils.fromTimestamp(revCommit.getCommitTime() * 1000L);
                 return DateTimeUtils.inFewDay(commitDateTime, day);
-            }).collect(Collectors.toList());
+            }).map(CommitInfo::new).collect(Collectors.toList());
 
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-
     /**
-     * 把应用传进来的参数转成Map
+     * 返回距离上个release版本的日志
      *
-     * @param args 参数数组
-     * @return 参数键值对
+     * @param logs 返回距离上一次release前缀的日志
      */
-    private static Map<String, String> argToMap(String[] args) {
-        int index = 0;
-        Map<String, String> paramMap = new HashMap<>(args.length);
-        while (index < args.length) {
-            if (args[index].startsWith("-") && index + 1 < args.length && !args[index + 1].startsWith("-")) {
-                paramMap.put(args[index], args[index + 1]);
-                index += 2;
-            } else {
-                paramMap.put(args[index], null);
-                index += 1;
+    private static List<CommitInfo> getLogByRelease(LogCommand logs) {
+        try {
+            List<CommitInfo> revCommitList = new LinkedList<>();
+            for (RevCommit revCommit : logs.all().call()) {
+                if (revCommit.getShortMessage().startsWith("release:")) {
+                    break;
+                }
+                revCommitList.add(new CommitInfo(revCommit));
             }
+            return revCommitList;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-        return paramMap;
     }
+
 
 }

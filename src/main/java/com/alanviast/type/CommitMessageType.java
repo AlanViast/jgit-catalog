@@ -17,7 +17,8 @@ public enum CommitMessageType {
     style("代码样式修改"),
     chore("修改构建工具"),
     test("代码测试/测试用例"),
-    other("其他");
+    other("其他"),
+    release("发布版本");
 
     private String desc;
 
