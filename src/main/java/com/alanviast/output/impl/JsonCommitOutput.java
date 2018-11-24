@@ -24,7 +24,7 @@ public class JsonCommitOutput implements CommitOutput {
     @Override
     public void handler(ApplicationArguments applicationArguments, Map<CommitMessageType, List<CommitInfo>> commitMessageTypeListMap) {
         if (applicationArguments.containsKey(KEY)) {
-            String filename = applicationArguments.get(KEY);
+            String filename = applicationArguments.getOrDefault(KEY, "catelog.json");
             try {
                 FileUtils.write(FileUtils.getFile(filename), JsonUtils.format(commitMessageTypeListMap), StandardCharsets.UTF_8);
             } catch (IOException e) {

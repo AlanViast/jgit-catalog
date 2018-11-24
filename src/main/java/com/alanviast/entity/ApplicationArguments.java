@@ -39,6 +39,14 @@ public class ApplicationArguments {
         return params.get(key);
     }
 
+    public String getOrDefault(String key, String defaultValue) {
+        String value = params.get(key);
+        if (null == value) {
+            return defaultValue;
+        }
+        return value;
+    }
+
     public String getFilename() {
         return filename;
     }
