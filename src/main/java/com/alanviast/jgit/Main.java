@@ -47,7 +47,7 @@ public class Main {
 
         if (applicationArguments.containsKey("-t")) {
             revCommitList = getLogByDay(logs, applicationArguments.getDay());
-        } else if (applicationArguments.containsKey("-r")) {
+        } else if (applicationArguments.isRelease()) {
             revCommitList = getLogByRelease(logs);
         } else {
             revCommitList = getLogByDay(logs, 15);

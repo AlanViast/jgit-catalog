@@ -13,11 +13,10 @@ import java.util.Map;
 public class ApplicationArguments {
 
 
-    private String filename;
     private String projectDirectory;
     private Integer day;
-    private boolean release = Boolean.FALSE;
-    private Map<String, String> params = Collections.emptyMap();
+    private boolean release;
+    private Map<String, String> params;
 
 
     public ApplicationArguments(String[] arguments) {
@@ -45,10 +44,6 @@ public class ApplicationArguments {
             return defaultValue;
         }
         return value;
-    }
-
-    public String getFilename() {
-        return filename;
     }
 
     public String getProjectDirectory() {
